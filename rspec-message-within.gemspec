@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.version       = Rspec::Message::Within::VERSION
   spec.authors       = ['Jan Graichen']
   spec.email         = %w(jg@altimos.de)
-  spec.description   = %q{TODO: Write a gem description}
-  spec.summary       = %q{TODO: Write a gem summary}
+  spec.description   = %q{expect(object).to receive(:message).within(:some).seconds}
+  spec.summary       = %q{expect(object).to receive(:message).within(:some).seconds}
   spec.homepage      = 'https://github.com/jgraichen/rspec-message-within'
   spec.license       = 'MIT'
 
