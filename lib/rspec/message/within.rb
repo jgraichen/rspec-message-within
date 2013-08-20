@@ -5,7 +5,17 @@ module RSpec
   module Message
     module Within
 
-      module ExpectationPatch
+      def self.until(within_time)
+        if within_time && within_time > 0.0
+          time = Time.now + within_time
+          while time > Time.now
+            break if yield
+            sleep 0
+          end
+        end
+      end
+
+      module MessageExpectationPatch
         def self.included(base)
           # Seems to not work. Why?
           base.send :include, InstanceMethods
@@ -17,14 +27,8 @@ module RSpec
 
         module InstanceMethods
           def verify_messages_received
-            @within_time ||= nil
-
-            if @within_time
-              time = Time.now + @within_time
-              while time > Time.now
-                break if expected_messages_received? and !negative?
-                sleep 0
-              end
+            Within.until(@within_time || 0) do
+              expected_messages_received? and !negative?
             end
 
             orig_verify_messages_received
@@ -37,7 +41,7 @@ module RSpec
         end
       end
 
-      module MatcherPatch
+      module ReceivePatch
         def self.included(base)
           base.send :include, InstanceMethods
         end
@@ -52,9 +56,36 @@ module RSpec
           end
         end
       end
-    end
 
-    ::RSpec::Mocks::MessageExpectation.send :include, Within::ExpectationPatch
-    ::RSpec::Mocks::Matchers::Receive.send :include, Within::MatcherPatch
+      module ExpectationChainPatch
+        def self.included(base)
+          base.send :alias_method, :orig_expectation_fulfilled?, :expectation_fulfilled?
+          base.send :undef_method, :expectation_fulfilled?
+          base.send :define_method, :expectation_fulfilled?, InstanceMethods.instance_method(:expectation_fulfilled?)
+        end
+
+        module InstanceMethods
+          def expectation_fulfilled?
+            Within.until(@within_time || 0) do
+              orig_expectation_fulfilled?
+            end
+
+            orig_expectation_fulfilled?
+          end
+        end
+      end
+
+      module ChainPatch
+        def within(time)
+          @within_time = time
+          self
+        end
+      end
+
+      ::RSpec::Mocks::MessageExpectation.send :include, MessageExpectationPatch
+      ::RSpec::Mocks::AnyInstance::Chain.send :include, ChainPatch
+      ::RSpec::Mocks::AnyInstance::ExpectationChain.send :include, ExpectationChainPatch
+      ::RSpec::Mocks::Matchers::Receive.send :include, ReceivePatch
+    end
   end
 end
